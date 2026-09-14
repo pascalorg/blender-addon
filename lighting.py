@@ -6,6 +6,7 @@ updates the same world, sun and camera instead of adding more."""
 from __future__ import annotations
 
 import math
+import os
 
 import bpy
 from mathutils import Vector
@@ -13,29 +14,83 @@ from mathutils import Vector
 WORLD_NAME = "Pascal sky"
 SUN_NAME = "Pascal sun"
 CAMERA_NAME = "Pascal camera"
-SUN_ELEVATION = math.radians(32)
-SUN_ROTATION = math.radians(135)  # side light: facades get a gradient, the visible sky stays bright
-SUN_ENERGY = 4.5
-SUN_COLOR = (1.0, 0.93, 0.82)
-SKY_STRENGTH = 0.4
 GROUND_NAME = "Pascal ground"
 GROUND_COLOR = (0.22, 0.24, 0.23)
 GROUND_RADIUS = 2000.0
-EXPOSURE = -0.5
+EXPOSURE = 0.0
 CAMERA_LENS = 32.0
 CAMERA_AZIMUTH = math.radians(-35)
 CAMERA_ELEVATION = math.radians(20)
 ENGINE_CANDIDATES = ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT")
 
+# Lighting comes from one of Blender's bundled world HDRIs (neutral, no colour
+# cast) while the camera sees a physical sky backdrop that matches the sun; the
+# sun lamp adds the crisp shadows a small HDRI cannot. "sky" is the pure
+# physical-sky option.
+PRESETS = {
+    "daylight": {
+        "label": "Daylight",
+        "hdri": "courtyard.exr",
+        "hdri_strength": 0.9,
+        "hdri_rotation": math.radians(0),
+        "sun_elevation": math.radians(42),
+        "sun_rotation": math.radians(205),  # behind the camera: lit facades, shadows falling away
+        "sun_energy": 2.5,
+        "sun_color": (1.0, 0.98, 0.95),
+        "sky_strength": 0.45,
+    },
+    "golden": {
+        "label": "Golden hour",
+        "hdri": "sunrise.exr",
+        "hdri_strength": 1.2,
+        "hdri_rotation": math.radians(120),
+        "sun_elevation": math.radians(22),
+        "sun_rotation": math.radians(205),
+        "sun_energy": 3.5,
+        "sun_color": (1.0, 0.86, 0.68),
+        "sky_strength": 0.35,
+    },
+    "overcast": {
+        "label": "Overcast",
+        "hdri": "city.exr",
+        "hdri_strength": 1.1,
+        "hdri_rotation": math.radians(0),
+        "sun_elevation": math.radians(50),
+        "sun_rotation": math.radians(205),
+        "sun_energy": 0.8,
+        "sun_color": (1.0, 1.0, 1.0),
+        "sky_strength": 0.5,
+    },
+    "sky": {
+        "label": "Physical sky",
+        "hdri": None,
+        "hdri_strength": 0.0,
+        "hdri_rotation": 0.0,
+        "sun_elevation": math.radians(32),
+        "sun_rotation": math.radians(205),
+        "sun_energy": 4.5,
+        "sun_color": (1.0, 0.93, 0.82),
+        "sky_strength": 0.4,
+    },
+}
+DEFAULT_PRESET = "daylight"
+PRESET_ITEMS = [(key, value["label"], "") for key, value in PRESETS.items()]
 
-def _world(scene: bpy.types.Scene) -> bpy.types.World:
+
+def _hdri_path(filename: str) -> str:
+    # system_resource resolves directories only, never files.
+    return os.path.join(bpy.utils.system_resource("DATAFILES", path="studiolights/world"), filename)
+
+
+def _world(scene: bpy.types.Scene, preset: dict) -> bpy.types.World:
     world = bpy.data.worlds.get(WORLD_NAME) or bpy.data.worlds.new(WORLD_NAME)
     scene.world = world
     world.use_nodes = True
     nodes, links = world.node_tree.nodes, world.node_tree.links
     nodes.clear()
+
     sky = nodes.new("ShaderNodeTexSky")
-    sky.location = (-500, 0)
+    sky.location = (-600, -250)
     for sky_type in ("MULTIPLE_SCATTERING", "NISHITA"):
         try:
             sky.sky_type = sky_type
@@ -43,42 +98,88 @@ def _world(scene: bpy.types.Scene) -> bpy.types.World:
         except TypeError:
             continue
     for name, value in (
-        ("sun_elevation", SUN_ELEVATION),
-        ("sun_rotation", SUN_ROTATION),
+        ("sun_elevation", preset["sun_elevation"]),
+        ("sun_rotation", preset["sun_rotation"]),
         ("sun_intensity", 1.0),
-        ("sun_disc", False),  # the sun lamp below provides the direct light
+        ("sun_disc", False),  # the sun lamp provides the direct light
         ("altitude", 50.0),
         ("air_density", 1.0),
         ("dust_density", 2.0),
-        ("turbidity", 3.5),
         ("ozone_density", 1.0),
+        ("turbidity", 3.5),
     ):
         if hasattr(sky, name):
             setattr(sky, name, value)
+    sky_strength = nodes.new("ShaderNodeMath")
+    sky_strength.operation = "MULTIPLY"
+    sky_strength.location = (-350, -250)
+    sky_strength.inputs[1].default_value = preset["sky_strength"]
+    # Math takes a float; scale each channel via a Mix in multiply mode instead.
+    sky_scale = nodes.new("ShaderNodeMix")
+    sky_scale.data_type = "RGBA"
+    sky_scale.blend_type = "MULTIPLY"
+    sky_scale.location = (-350, -250)
+    sky_scale.inputs[0].default_value = 1.0
+    sky_scale.inputs[7].default_value = (preset["sky_strength"],) * 3 + (1.0,)
+    nodes.remove(sky_strength)
+    links.new(sky.outputs["Color"], sky_scale.inputs[6])
+
     background = nodes.new("ShaderNodeBackground")
-    background.location = (-100, 0)
-    background.inputs["Strength"].default_value = SKY_STRENGTH
+    background.location = (100, 0)
+    background.inputs["Strength"].default_value = 1.0
     output = nodes.new("ShaderNodeOutputWorld")
-    output.location = (150, 0)
-    links.new(sky.outputs["Color"], background.inputs["Color"])
+    output.location = (350, 0)
+
+    hdri = preset["hdri"]
+    if hdri:
+        image = bpy.data.images.load(_hdri_path(hdri), check_existing=True)
+        coords = nodes.new("ShaderNodeTexCoord")
+        coords.location = (-1100, 150)
+        mapping = nodes.new("ShaderNodeMapping")
+        mapping.location = (-900, 150)
+        mapping.inputs["Rotation"].default_value = (0.0, 0.0, preset["hdri_rotation"])
+        environment = nodes.new("ShaderNodeTexEnvironment")
+        environment.location = (-650, 150)
+        environment.image = image
+        env_scale = nodes.new("ShaderNodeMix")
+        env_scale.data_type = "RGBA"
+        env_scale.blend_type = "MULTIPLY"
+        env_scale.location = (-350, 150)
+        env_scale.inputs[0].default_value = 1.0
+        env_scale.inputs[7].default_value = (preset["hdri_strength"],) * 3 + (1.0,)
+        light_path = nodes.new("ShaderNodeLightPath")
+        light_path.location = (-350, 400)
+        # Lighting from the HDRI, the sky as what the camera actually sees.
+        pick = nodes.new("ShaderNodeMix")
+        pick.data_type = "RGBA"
+        pick.location = (-100, 0)
+        links.new(coords.outputs["Generated"], mapping.inputs["Vector"])
+        links.new(mapping.outputs["Vector"], environment.inputs["Vector"])
+        links.new(environment.outputs["Color"], env_scale.inputs[6])
+        links.new(light_path.outputs["Is Camera Ray"], pick.inputs[0])
+        links.new(env_scale.outputs[2], pick.inputs[6])
+        links.new(sky_scale.outputs[2], pick.inputs[7])
+        links.new(pick.outputs[2], background.inputs["Color"])
+    else:
+        links.new(sky_scale.outputs[2], background.inputs["Color"])
     links.new(background.outputs["Background"], output.inputs["Surface"])
     return world
 
 
-def _sun(root: bpy.types.Collection) -> bpy.types.Object:
+def _sun(root: bpy.types.Collection, preset: dict) -> bpy.types.Object:
     sun = bpy.data.objects.get(SUN_NAME)
     if sun is None or sun.type != "LIGHT":
         light = bpy.data.lights.new(SUN_NAME, "SUN")
         sun = bpy.data.objects.new(SUN_NAME, light)
         root.objects.link(sun)
     light = sun.data
-    light.energy = SUN_ENERGY
-    light.color = SUN_COLOR
+    light.energy = preset["sun_energy"]
+    light.color = preset["sun_color"]
     light.angle = math.radians(0.6)
     light.use_shadow = True
     # A sun lamp shines down its local -Z: tilt it from the zenith by the
     # complement of the elevation, then spin it to the sky's sun rotation.
-    sun.rotation_euler = (math.pi / 2 - SUN_ELEVATION, 0.0, SUN_ROTATION)
+    sun.rotation_euler = (math.pi / 2 - preset["sun_elevation"], 0.0, preset["sun_rotation"])
     sun.location = (0.0, 0.0, 10.0)
     return sun
 
@@ -121,6 +222,8 @@ def _bounds(objects) -> tuple[Vector, Vector] | None:
     found = False
     for obj in objects:
         if obj.type != "MESH" or obj.hide_render or obj.get("kind") == "zone-floor":
+            continue
+        if obj.name.split(".")[0] == GROUND_NAME:
             continue
         for corner in obj.bound_box:
             point = obj.matrix_world @ Vector(corner)
@@ -188,7 +291,7 @@ def _render_settings(scene: bpy.types.Scene) -> None:
         scene.world.use_sun_shadow = False
 
 
-def _rendered_viewports() -> None:
+def _rendered_viewports(hdri: str | None) -> None:
     if bpy.app.background:
         return
     for window in bpy.context.window_manager.windows:
@@ -197,17 +300,33 @@ def _rendered_viewports() -> None:
                 continue
             for space in area.spaces:
                 if space.type == "VIEW_3D":
-                    space.shading.type = "RENDERED"
-                    space.shading.use_scene_lights_render = True
-                    space.shading.use_scene_world_render = True
+                    shading = space.shading
+                    shading.type = "RENDERED"
+                    shading.use_scene_lights_render = True
+                    shading.use_scene_world_render = True
+                    if hdri:
+                        try:
+                            shading.studio_light = hdri
+                            shading.studiolight_background_alpha = 1.0
+                            shading.studiolight_background_blur = 0.5
+                        except TypeError:
+                            pass
             area.tag_redraw()
 
 
-def setup_lighting(context, root: bpy.types.Collection, objects) -> None:
+def preset_preference() -> str:
+    try:
+        return str(bpy.context.preferences.addons[__package__].preferences.lighting_preset)
+    except (KeyError, AttributeError):
+        return DEFAULT_PRESET
+
+
+def setup_lighting(context, root: bpy.types.Collection, objects, preset_name: str | None = None) -> None:
+    preset = PRESETS.get(preset_name or preset_preference(), PRESETS[DEFAULT_PRESET])
     scene = context.scene
-    _world(scene)
-    _sun(root)
+    _world(scene, preset)
+    _sun(root, preset)
     _ground(root, _bounds(objects))
     _camera(scene, root, objects)
     _render_settings(scene)
-    _rendered_viewports()
+    _rendered_viewports(preset["hdri"])

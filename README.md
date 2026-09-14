@@ -39,8 +39,13 @@ Untick *Replace previous import* in the file dialog to keep an earlier import of
 blue plastic, so they become Principled glass (files exported with transmission are left alone);
 textures whose alpha channel really cuts something out get that alpha wired to the shader; the
 site's ground plane gets a mid-grey albedo. *Set up lighting* (file dialog, Pascal tab, and the
-add-on preferences for scenes sent from the editor) adds a `Pascal sky` world, a `Pascal sun` and a `Pascal camera` — press Numpad 0 to look
-through it. They are a starting point: tweak or delete them, a re-import reuses the same ones.
+add-on preferences for scenes sent from the editor) adds a `Pascal sky` world, a `Pascal sun`, a
+`Pascal ground` and a `Pascal camera` — press Numpad 0 to look through it. The look comes from a
+preset you pick in the Pascal tab (*Daylight*, *Golden hour*, *Overcast*, *Physical sky*); the
+refresh button next to it re-lights the current scene. Lighting uses one of Blender's bundled
+world HDRIs (neutral, no colour cast) with a sun lamp for crisp shadows, while the camera sees a
+physical-sky backdrop. They are a starting point: tweak or delete them, a re-import reuses the
+same ones.
 
 ## What the file contains
 

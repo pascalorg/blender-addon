@@ -3,7 +3,7 @@
 import bpy
 from bpy.props import StringProperty
 
-from . import listener
+from . import importer, lighting, listener
 from .importer import PASCAL_OT_import_glb
 
 
@@ -65,6 +65,23 @@ class PASCAL_OT_ignore_origin(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class PASCAL_OT_relight(bpy.types.Operator):
+    """Rebuild the Pascal sky, sun and camera with the selected lighting preset"""
+
+    bl_idname = "pascal.relight"
+    bl_label = "Apply lighting preset"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        root = bpy.data.collections.get(importer.ROOT_COLLECTION)
+        if root is None:
+            self.report({"WARNING"}, "Import a Pascal scene first")
+            return {"CANCELLED"}
+        objects = [obj for collection in importer._collection_tree(root) for obj in collection.objects]
+        lighting.setup_lighting(context, root, objects)
+        return {"FINISHED"}
+
+
 class VIEW3D_PT_pascal(bpy.types.Panel):
     bl_label = "Pascal"
     bl_space_type = "VIEW_3D"
@@ -78,6 +95,10 @@ class VIEW3D_PT_pascal(bpy.types.Panel):
         if prefs is not None:
             layout.prop(prefs, "polish_materials")
             layout.prop(prefs, "setup_lighting")
+            row = layout.row()
+            row.enabled = prefs.setup_lighting
+            row.prop(prefs, "lighting_preset", text="")
+            row.operator(PASCAL_OT_relight.bl_idname, text="", icon="FILE_REFRESH")
 
         box = layout.box()
         if listener.running():
@@ -126,6 +147,7 @@ def _wrap(text: str, width: int) -> list[str]:
 
 
 CLASSES = (
+    PASCAL_OT_relight,
     PASCAL_OT_listener_start,
     PASCAL_OT_listener_stop,
     PASCAL_OT_allow_origin,

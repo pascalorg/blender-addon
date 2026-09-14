@@ -1,9 +1,13 @@
 """Add-on preferences: listener port, allowed web origins, auto-start."""
 
 import bpy
-from bpy.props import BoolProperty, IntProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
-from . import listener
+from . import lighting, listener
+
+
+def listener_presets():
+    return lighting.PRESET_ITEMS
 
 
 class PascalPreferences(bpy.types.AddonPreferences):
@@ -30,6 +34,12 @@ class PascalPreferences(bpy.types.AddonPreferences):
         description="Turn see-through surfaces into glass, wire cutout alpha on leaf textures, calm the site ground",
         default=True,
     )
+    lighting_preset: EnumProperty(
+        name="Lighting",
+        description="Look applied by Set up lighting",
+        items=listener_presets(),
+        default=lighting.DEFAULT_PRESET,
+    )
     setup_lighting: BoolProperty(
         name="Set up lighting on import",
         description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading after each import",
@@ -40,6 +50,7 @@ class PascalPreferences(bpy.types.AddonPreferences):
         layout = self.layout
         layout.prop(self, "polish_materials")
         layout.prop(self, "setup_lighting")
+        layout.prop(self, "lighting_preset")
         layout.prop(self, "auto_start")
         layout.prop(self, "port")
         layout.prop(self, "allowed_origins")
