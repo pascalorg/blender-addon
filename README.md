@@ -11,6 +11,9 @@ scene instead of a flat pile of meshes:
 - metric units, 1 unit = 1 m
 - re-importing the same project replaces the previous import instead of stacking `.001` copies
 - a loopback listener so the editor's *Send to Blender* lands the live scene in the open Blender
+- optional material polish on import (on by default): see-through surfaces become real glass with
+  transmission, leaf textures get their cutout alpha wired up, and the site ground gets a calmer
+  albedo so it stops blowing out the frame
 - optional lighting on import (on by default): a physical sky with a matching sun, a camera framing
   the building, EEVEE with shadows and ray tracing, and the viewport switched to rendered shading
 
@@ -32,8 +35,11 @@ Blender 4.2 or newer.
   procedural content is baked into the file).
 
 Untick *Replace previous import* in the file dialog to keep an earlier import of the same project.
-*Set up lighting* (file dialog, Pascal tab, and the add-on preferences for scenes sent from the
-editor) adds a `Pascal sky` world, a `Pascal sun` and a `Pascal camera` — press Numpad 0 to look
+*Polish materials* fixes what glTF cannot express: windows arrive as a 30% alpha blend and read as
+blue plastic, so they become Principled glass (files exported with transmission are left alone);
+textures whose alpha channel really cuts something out get that alpha wired to the shader; the
+site's ground plane gets a mid-grey albedo. *Set up lighting* (file dialog, Pascal tab, and the
+add-on preferences for scenes sent from the editor) adds a `Pascal sky` world, a `Pascal sun` and a `Pascal camera` — press Numpad 0 to look
 through it. They are a starting point: tweak or delete them, a re-import reuses the same ones.
 
 ## What the file contains

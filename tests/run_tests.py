@@ -100,7 +100,62 @@ def main() -> None:
 
     plain = importer.import_pascal_file(bpy.context, fixture, scene_name="plain", setup_lighting=False)
     assert not plain.lighting
+
+    check_polish()
     print("OK", summary.describe())
+
+
+def check_polish() -> None:
+    from pascal_addon import polish
+
+    glass = bpy.data.materials.new("t-glass")
+    glass.use_nodes = True
+    node = next(n for n in glass.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    node.inputs["Base Color"].default_value = (0.2, 0.6, 0.9, 1.0)
+    node.inputs["Alpha"].default_value = 0.3
+    node.inputs["Roughness"].default_value = 0.5
+    assert polish.polish_glass(glass)
+    assert node.inputs["Transmission Weight"].default_value == 1.0
+    assert node.inputs["Alpha"].default_value == 1.0
+    assert node.inputs["Roughness"].default_value <= polish.GLASS_MAX_ROUGHNESS + 1e-6
+    assert abs(node.inputs["Base Color"].default_value[0] - (0.2 + 0.8 * 0.7)) < 1e-5
+    assert not polish.polish_glass(glass), "glass polished twice"
+
+    plastic = bpy.data.materials.new("t-plastic")
+    plastic.use_nodes = True
+    next(n for n in plastic.node_tree.nodes if n.type == "BSDF_PRINCIPLED").inputs["Alpha"].default_value = 0.8
+    assert not polish.polish_glass(plastic)
+
+    leaf_image = bpy.data.images.new("t-leaf", 4, 4, alpha=True)
+    pixels = [1.0, 1.0, 1.0, 1.0] * 16
+    pixels[3] = 0.0
+    leaf_image.pixels = pixels
+    leaf = bpy.data.materials.new("t-leaf")
+    leaf.use_nodes = True
+    principled = next(n for n in leaf.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    tex = leaf.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = leaf_image
+    leaf.node_tree.links.new(tex.outputs["Color"], principled.inputs["Base Color"])
+    assert polish.polish_cutout(leaf, {})
+    assert principled.inputs["Alpha"].is_linked
+
+    solid_image = bpy.data.images.new("t-solid", 4, 4, alpha=True)
+    solid_image.pixels = [1.0] * 64
+    solid = bpy.data.materials.new("t-solid")
+    solid.use_nodes = True
+    principled = next(n for n in solid.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    tex = solid.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = solid_image
+    solid.node_tree.links.new(tex.outputs["Color"], principled.inputs["Base Color"])
+    assert not polish.polish_cutout(solid, {}), "opaque texture wrongly cut out"
+
+    site = bpy.data.objects.new("t-site", bpy.data.meshes.new("t-site"))
+    site["kind"] = "site"
+    ground = bpy.data.materials.new("t-ground")
+    ground.use_nodes = True
+    site.data.materials.append(ground)
+    result = polish.polish_materials([site])
+    assert result.ground == 1 and result.describe() == "ground", result
 
 
 if __name__ == "__main__":

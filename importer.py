@@ -18,7 +18,7 @@ import bpy
 from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
-from . import lighting
+from . import lighting, polish
 
 ROOT_COLLECTION = "Pascal"
 SITE_ID_PROPERTY = "pascal_site_id"
@@ -53,6 +53,7 @@ class ImportSummary:
     actions: int = 0
     replaced: bool = False
     lighting: bool = False
+    polished: str = ""
 
     def describe(self) -> str:
         parts = [f"{self.objects} objects", f"{len(self.levels)} levels"]
@@ -60,6 +61,8 @@ class ImportSummary:
             parts.append(f"{self.zones} zones")
         if self.actions:
             parts.append(f"{self.actions} door/window actions")
+        if self.polished:
+            parts.append(f"polished {self.polished}")
         if self.lighting:
             parts.append("lighting set up")
         verb = "Replaced" if self.replaced else "Imported"
@@ -242,11 +245,19 @@ def build_zone_mesh(zone: bpy.types.Object, collection: bpy.types.Collection) ->
 # --- the import -------------------------------------------------------------
 
 
-def lighting_preference() -> bool:
+def _preference(name: str, default: bool) -> bool:
     try:
-        return bool(bpy.context.preferences.addons[__package__].preferences.setup_lighting)
+        return bool(getattr(bpy.context.preferences.addons[__package__].preferences, name))
     except (KeyError, AttributeError):
-        return True
+        return default
+
+
+def lighting_preference() -> bool:
+    return _preference("setup_lighting", True)
+
+
+def polish_preference() -> bool:
+    return _preference("polish_materials", True)
 
 
 def import_pascal_file(
@@ -256,9 +267,12 @@ def import_pascal_file(
     scene_name: str | None = None,
     replace: bool = True,
     setup_lighting: bool | None = None,
+    polish_materials: bool | None = None,
 ) -> ImportSummary:
     if setup_lighting is None:
         setup_lighting = lighting_preference()
+    if polish_materials is None:
+        polish_materials = polish_preference()
     site_id = peek_site_id(filepath)
     replaced = bool(replace and site_id and remove_previous_import(context, site_id))
 
@@ -324,6 +338,8 @@ def import_pascal_file(
     units.length_unit = "METERS"
     units.scale_length = 1.0
 
+    if polish_materials:
+        summary.polished = polish.polish_materials(created).describe()
     if setup_lighting:
         lighting.setup_lighting(context, root, created)
         summary.lighting = True
@@ -349,15 +365,25 @@ class PASCAL_OT_import_glb(bpy.types.Operator, ImportHelper):
         description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading",
         default=True,
     )
+    polish_materials: BoolProperty(
+        name="Polish materials",
+        description="Turn see-through surfaces into glass, wire cutout alpha, calm the site ground",
+        default=True,
+    )
 
     def invoke(self, context, event):
         self.setup_lighting = lighting_preference()
+        self.polish_materials = polish_preference()
         return super().invoke(context, event)
 
     def execute(self, context):
         try:
             summary = import_pascal_file(
-                context, self.filepath, replace=self.replace, setup_lighting=self.setup_lighting
+                context,
+                self.filepath,
+                replace=self.replace,
+                setup_lighting=self.setup_lighting,
+                polish_materials=self.polish_materials,
             )
         except Exception as error:  # noqa: BLE001 — surface anything the glTF importer raised
             self.report({"ERROR"}, f"Pascal import failed: {error}")

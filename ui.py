@@ -76,6 +76,7 @@ class VIEW3D_PT_pascal(bpy.types.Panel):
         layout.operator(PASCAL_OT_import_glb.bl_idname, text="Import Pascal scene", icon="IMPORT")
         prefs = _prefs(context)
         if prefs is not None:
+            layout.prop(prefs, "polish_materials")
             layout.prop(prefs, "setup_lighting")
 
         box = layout.box()

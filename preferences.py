@@ -25,6 +25,11 @@ class PascalPreferences(bpy.types.AddonPreferences):
         name="Listen for the Pascal editor on startup",
         default=True,
     )
+    polish_materials: BoolProperty(
+        name="Polish materials on import",
+        description="Turn see-through surfaces into glass, wire cutout alpha on leaf textures, calm the site ground",
+        default=True,
+    )
     setup_lighting: BoolProperty(
         name="Set up lighting on import",
         description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading after each import",
@@ -33,6 +38,7 @@ class PascalPreferences(bpy.types.AddonPreferences):
 
     def draw(self, context) -> None:
         layout = self.layout
+        layout.prop(self, "polish_materials")
         layout.prop(self, "setup_lighting")
         layout.prop(self, "auto_start")
         layout.prop(self, "port")
