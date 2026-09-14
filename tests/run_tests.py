@@ -78,11 +78,28 @@ def main() -> None:
     units = bpy.context.scene.unit_settings
     assert (units.system, units.length_unit) == ("METRIC", "METERS")
 
+    assert summary.lighting, "lighting was not set up"
+    world = bpy.context.scene.world
+    assert world is not None and any(n.type == "TEX_SKY" for n in world.node_tree.nodes), "no sky"
+    sun = bpy.data.objects.get(importer.lighting.SUN_NAME)
+    assert sun is not None and sun.type == "LIGHT" and sun.data.type == "SUN"
+    camera = bpy.data.objects.get(importer.lighting.CAMERA_NAME)
+    assert camera is not None and bpy.context.scene.camera is camera
+    ground = bpy.data.objects.get(importer.lighting.GROUND_NAME)
+    assert ground is not None and ground.type == "MESH" and ground.data.materials
+    assert bpy.context.scene.render.engine in importer.lighting.ENGINE_CANDIDATES
+
     objects_before = len(bpy.data.objects)
     second = importer.import_pascal_file(bpy.context, fixture)
     assert second.replaced, "second import did not replace the first"
     assert len(bpy.data.objects) == objects_before, "re-import changed the object count"
     assert len([c for c in root.children if c.get(importer.SITE_ID_PROPERTY)]) == 1
+    assert len([o for o in bpy.data.objects if o.name.startswith(importer.lighting.SUN_NAME)]) == 1
+    assert len([o for o in bpy.data.objects if o.name.startswith(importer.lighting.CAMERA_NAME)]) == 1
+    assert len([o for o in bpy.data.objects if o.name.startswith(importer.lighting.GROUND_NAME)]) == 1
+
+    plain = importer.import_pascal_file(bpy.context, fixture, scene_name="plain", setup_lighting=False)
+    assert not plain.lighting
     print("OK", summary.describe())
 
 

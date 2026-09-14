@@ -25,9 +25,15 @@ class PascalPreferences(bpy.types.AddonPreferences):
         name="Listen for the Pascal editor on startup",
         default=True,
     )
+    setup_lighting: BoolProperty(
+        name="Set up lighting on import",
+        description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading after each import",
+        default=True,
+    )
 
     def draw(self, context) -> None:
         layout = self.layout
+        layout.prop(self, "setup_lighting")
         layout.prop(self, "auto_start")
         layout.prop(self, "port")
         layout.prop(self, "allowed_origins")

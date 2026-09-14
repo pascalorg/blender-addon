@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "pascal"
-version = "0.1.0"
+version = "0.2.0"
 name = "Pascal"
 tagline = "Import Pascal scenes with levels, zones, doors and metadata"
 maintainer = "Pascal Group Inc"

@@ -74,6 +74,9 @@ class VIEW3D_PT_pascal(bpy.types.Panel):
     def draw(self, context) -> None:
         layout = self.layout
         layout.operator(PASCAL_OT_import_glb.bl_idname, text="Import Pascal scene", icon="IMPORT")
+        prefs = _prefs(context)
+        if prefs is not None:
+            layout.prop(prefs, "setup_lighting")
 
         box = layout.box()
         if listener.running():
@@ -98,6 +101,13 @@ class VIEW3D_PT_pascal(bpy.types.Panel):
             box = layout.box()
             for line in _wrap(last, 34):
                 box.label(text=line)
+
+
+def _prefs(context):
+    try:
+        return context.preferences.addons[__package__].preferences
+    except (KeyError, AttributeError):
+        return None
 
 
 def _wrap(text: str, width: int) -> list[str]:

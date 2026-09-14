@@ -18,6 +18,8 @@ import bpy
 from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
+from . import lighting
+
 ROOT_COLLECTION = "Pascal"
 SITE_ID_PROPERTY = "pascal_site_id"
 STRUCTURE_KINDS = {"site", "building", "level"}
@@ -50,6 +52,7 @@ class ImportSummary:
     zones: int = 0
     actions: int = 0
     replaced: bool = False
+    lighting: bool = False
 
     def describe(self) -> str:
         parts = [f"{self.objects} objects", f"{len(self.levels)} levels"]
@@ -57,6 +60,8 @@ class ImportSummary:
             parts.append(f"{self.zones} zones")
         if self.actions:
             parts.append(f"{self.actions} door/window actions")
+        if self.lighting:
+            parts.append("lighting set up")
         verb = "Replaced" if self.replaced else "Imported"
         return f"{verb} {self.name}: " + ", ".join(parts)
 
@@ -237,9 +242,23 @@ def build_zone_mesh(zone: bpy.types.Object, collection: bpy.types.Collection) ->
 # --- the import -------------------------------------------------------------
 
 
+def lighting_preference() -> bool:
+    try:
+        return bool(bpy.context.preferences.addons[__package__].preferences.setup_lighting)
+    except (KeyError, AttributeError):
+        return True
+
+
 def import_pascal_file(
-    context, filepath: str, *, scene_name: str | None = None, replace: bool = True
+    context,
+    filepath: str,
+    *,
+    scene_name: str | None = None,
+    replace: bool = True,
+    setup_lighting: bool | None = None,
 ) -> ImportSummary:
+    if setup_lighting is None:
+        setup_lighting = lighting_preference()
     site_id = peek_site_id(filepath)
     replaced = bool(replace and site_id and remove_previous_import(context, site_id))
 
@@ -304,6 +323,10 @@ def import_pascal_file(
     units.system = "METRIC"
     units.length_unit = "METERS"
     units.scale_length = 1.0
+
+    if setup_lighting:
+        lighting.setup_lighting(context, root, created)
+        summary.lighting = True
     return summary
 
 
@@ -321,10 +344,21 @@ class PASCAL_OT_import_glb(bpy.types.Operator, ImportHelper):
         description="Replace an earlier import of the same Pascal project instead of adding a copy",
         default=True,
     )
+    setup_lighting: BoolProperty(
+        name="Set up lighting",
+        description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading",
+        default=True,
+    )
+
+    def invoke(self, context, event):
+        self.setup_lighting = lighting_preference()
+        return super().invoke(context, event)
 
     def execute(self, context):
         try:
-            summary = import_pascal_file(context, self.filepath, replace=self.replace)
+            summary = import_pascal_file(
+                context, self.filepath, replace=self.replace, setup_lighting=self.setup_lighting
+            )
         except Exception as error:  # noqa: BLE001 — surface anything the glTF importer raised
             self.report({"ERROR"}, f"Pascal import failed: {error}")
             return {"CANCELLED"}
