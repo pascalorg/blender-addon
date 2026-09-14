@@ -84,7 +84,7 @@ def main() -> None:
 
     status, _, body = request(
         base, "POST", "/pascal/import", origin=EDITOR, body=glb,
-        headers={"Content-Type": "model/gltf-binary", "X-Pascal-Project-Name": "Sample house",
+        headers={"Content-Type": "model/gltf-binary", "X-Pascal-Project-Name": "Sample%20house%20%C3%A9t%C3%A9",
                  "X-Pascal-Project-Id": "project_sample"},
     )
     job = json.loads(body)
@@ -98,16 +98,16 @@ def main() -> None:
     status, _, body = request(base, "GET", f"/pascal/import/{job['id']}", origin=EDITOR)
     done = json.loads(body)
     assert status == 200 and done["state"] == "done", done
-    assert "Sample house" in done["summary"], done
+    assert "Sample house été" in done["summary"], done
     assert len(bpy.data.objects) > objects_before
     assert not os.path.exists(temp_path), "temp file not removed"
-    assert bpy.data.collections.get("Sample house") is not None
+    assert bpy.data.collections.get("Sample house été") is not None
 
     # Approving a pending origin lets it send; a second send replaces the first.
     listener.allow_origin(STRANGER)
     assert STRANGER not in listener.pending_origins()
     status, _, body = request(base, "POST", "/pascal/import", origin=STRANGER, body=glb,
-                              headers={"Content-Type": "model/gltf-binary", "X-Pascal-Project-Name": "Sample house"})
+                              headers={"Content-Type": "model/gltf-binary", "X-Pascal-Project-Name": "Sample%20house%20%C3%A9t%C3%A9"})
     assert status == 202, (status, body)
     count = len(bpy.data.objects)
     listener.drain_queue()

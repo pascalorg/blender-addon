@@ -24,7 +24,7 @@ import tomllib
 import uuid
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import bpy
 
@@ -269,7 +269,7 @@ class _Handler(BaseHTTPRequestHandler):
         job = Job(
             id=uuid.uuid4().hex,
             path=path,
-            name=self.headers.get("X-Pascal-Project-Name") or "Pascal scene",
+            name=unquote(self.headers.get("X-Pascal-Project-Name") or "") or "Pascal scene",
             project_id=self.headers.get("X-Pascal-Project-Id"),
             version=self.headers.get("X-Pascal-Version"),
             origin=origin,

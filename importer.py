@@ -257,7 +257,10 @@ def import_pascal_file(
 
     name = scene_name or os.path.splitext(os.path.basename(filepath))[0]
     root = _root_collection(context)
-    scene_collection = _child_collection(root, name)
+    # One collection per project (site id), never shared between projects that
+    # happen to carry the same name; Blender suffixes the duplicate name.
+    scene_collection = bpy.data.collections.new(name)
+    root.children.link(scene_collection)
     if site_id:
         scene_collection[SITE_ID_PROPERTY] = site_id
 

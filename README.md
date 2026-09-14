@@ -73,7 +73,7 @@ Protocol, for anyone building another sender:
 |---|---|
 | `OPTIONS *` | CORS preflight, answers `Access-Control-Allow-Private-Network: true` (Chrome private-network access) |
 | `GET /pascal/health` | `{ app: "blender", version, addon, port, allowed }` — `allowed` tells the caller whether its origin may send |
-| `POST /pascal/import` | body `model/gltf-binary`; optional `X-Pascal-Project-Name`, `X-Pascal-Project-Id`, `X-Pascal-Version`; `202 { id, state: "queued" }`, `403 origin_not_allowed`, `400 not_glb` |
+| `POST /pascal/import` | body `model/gltf-binary`; optional `X-Pascal-Project-Name` (percent-encoded UTF-8), `X-Pascal-Project-Id`, `X-Pascal-Version`; `202 { id, state: "queued" }`, `403 origin_not_allowed`, `400 not_glb` |
 | `GET /pascal/import/<id>` | `{ id, state: queued | done | failed, summary?, error? }` |
 
 Requests without an `Origin` header (curl, scripts on the same machine) are accepted: the
