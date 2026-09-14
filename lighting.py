@@ -61,6 +61,20 @@ PRESETS = {
         "sun_color": (1.0, 1.0, 1.0),
         "sky_strength": 0.5,
     },
+    "night": {
+        "label": "Night",
+        "hdri": "night.exr",
+        "hdri_strength": 0.2,
+        "hdri_rotation": math.radians(0),
+        "sun_elevation": math.radians(35),  # the moon
+        "sun_rotation": math.radians(205),
+        "sun_energy": 0.3,
+        "sun_color": (0.55, 0.66, 1.0),
+        "sky_strength": 0.03,
+        "sky_sun_elevation": math.radians(-6),  # backdrop: last twilight
+        "exposure": 1.0,
+        "room_lights": True,
+    },
     "sky": {
         "label": "Physical sky",
         "hdri": None,
@@ -74,6 +88,14 @@ PRESETS = {
     },
 }
 DEFAULT_PRESET = "daylight"
+ROOM_LIGHT_NAME = "Pascal room light"
+LIGHTS_COLLECTION = "Pascal lights"
+ROOM_LIGHT_HEIGHT = 2.2
+ROOM_LIGHT_POWER = 400.0
+PORCH_LIGHT_POWER = 250.0
+PORCH_LIGHT_HEIGHT = 2.6
+ROOM_LIGHT_COLOR = (1.0, 0.76, 0.52)
+ROOM_LIGHT_LIMIT = 64
 PRESET_ITEMS = [(key, value["label"], "") for key, value in PRESETS.items()]
 
 
@@ -98,7 +120,7 @@ def _world(scene: bpy.types.Scene, preset: dict) -> bpy.types.World:
         except TypeError:
             continue
     for name, value in (
-        ("sun_elevation", preset["sun_elevation"]),
+        ("sun_elevation", preset.get("sky_sun_elevation", preset["sun_elevation"])),
         ("sun_rotation", preset["sun_rotation"]),
         ("sun_intensity", 1.0),
         ("sun_disc", False),  # the sun lamp provides the direct light
@@ -216,6 +238,59 @@ def _ground(root: bpy.types.Collection, bounds: tuple[Vector, Vector] | None) ->
     return ground
 
 
+def _zone_anchor(zone: bpy.types.Object) -> Vector | None:
+    polygon = zone.get("polygon")
+    if polygon is None or len(polygon) < 3:
+        return None
+    points = [(float(p[0]), -float(p[1])) for p in polygon]
+    cx = sum(x for x, _ in points) / len(points)
+    cy = sum(y for _, y in points) / len(points)
+    return zone.matrix_world @ Vector((cx, cy, ROOM_LIGHT_HEIGHT))
+
+
+def _room_lights(root: bpy.types.Collection, objects, enabled: bool) -> int:
+    """Warm bulbs in every room (one per zone, at its centroid) so a night
+    scene glows from the inside. Rebuilt on every re-light; removed when the
+    preset does not ask for them."""
+    for obj in list(bpy.data.objects):
+        if obj.name.split(".")[0] == ROOM_LIGHT_NAME:
+            bpy.data.objects.remove(obj)
+    collection = bpy.data.collections.get(LIGHTS_COLLECTION)
+    if not enabled:
+        if collection is not None:
+            bpy.data.collections.remove(collection)
+        return 0
+    if collection is None:
+        collection = bpy.data.collections.new(LIGHTS_COLLECTION)
+    if collection.name not in root.children:
+        root.children.link(collection)
+    anchors = [
+        anchor
+        for zone in objects
+        if zone.get("kind") == "zone" and (anchor := _zone_anchor(zone)) is not None
+    ]
+    if not anchors:
+        bounds = _bounds(objects)
+        if bounds is not None:
+            low, high = bounds
+            anchors = [Vector(((low.x + high.x) / 2, (low.y + high.y) / 2, low.z + ROOM_LIGHT_HEIGHT))]
+    bulbs = [(anchor, ROOM_LIGHT_POWER) for anchor in anchors[:ROOM_LIGHT_LIMIT]]
+    # The spawn point is where visitors arrive: a porch light there reads as the entrance.
+    for spawn in objects:
+        if spawn.get("kind") == "spawn":
+            bulbs.append((spawn.matrix_world @ Vector((0.0, 0.0, PORCH_LIGHT_HEIGHT)), PORCH_LIGHT_POWER))
+            break
+    for anchor, power in bulbs:
+        data = bpy.data.lights.new(ROOM_LIGHT_NAME, "POINT")
+        data.energy = power
+        data.color = ROOM_LIGHT_COLOR
+        data.shadow_soft_size = 0.25
+        light = bpy.data.objects.new(ROOM_LIGHT_NAME, data)
+        light.location = anchor
+        collection.objects.link(light)
+    return len(bulbs)
+
+
 def _bounds(objects) -> tuple[Vector, Vector] | None:
     low = Vector((math.inf,) * 3)
     high = Vector((-math.inf,) * 3)
@@ -288,7 +363,7 @@ def _apply_engine(scene: bpy.types.Scene, choice: str) -> None:
             continue
 
 
-def _render_settings(scene: bpy.types.Scene, engine_choice: str = "KEEP") -> None:
+def _render_settings(scene: bpy.types.Scene, engine_choice: str = "KEEP", exposure: float = EXPOSURE) -> None:
     _apply_engine(scene, engine_choice)
     if scene.render.engine in ENGINE_CANDIDATES:
         eevee = scene.eevee
@@ -312,7 +387,7 @@ def _render_settings(scene: bpy.types.Scene, engine_choice: str = "KEEP") -> Non
             setattr(view, name, value)
         except TypeError:
             pass
-    view.exposure = EXPOSURE
+    view.exposure = exposure
     if scene.world is not None and hasattr(scene.world, "use_sun_shadow"):
         scene.world.use_sun_shadow = False
 
@@ -354,5 +429,6 @@ def setup_lighting(context, root: bpy.types.Collection, objects, preset_name: st
     _sun(root, preset)
     _ground(root, _bounds(objects))
     _camera(scene, root, objects)
-    _render_settings(scene, engine_preference())
+    _room_lights(root, objects, bool(preset.get("room_lights")))
+    _render_settings(scene, engine_preference(), float(preset.get("exposure", EXPOSURE)))
     _rendered_viewports(preset["hdri"])

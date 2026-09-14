@@ -103,7 +103,24 @@ def main() -> None:
     assert not plain.lighting
 
     check_polish()
+    check_night(root)
     print("OK", summary.describe())
+
+
+def check_night(root) -> None:
+    from pascal_addon import importer, lighting
+
+    objects = [obj for collection in importer._collection_tree(root) for obj in collection.objects]
+    zones = [obj for obj in objects if obj.get("kind") == "zone" and obj.get("polygon") is not None]
+    lighting.setup_lighting(bpy.context, root, objects, "night")
+    bulbs = [o for o in bpy.data.objects if o.name.startswith(lighting.ROOM_LIGHT_NAME)]
+    spawns = [obj for obj in objects if obj.get("kind") == "spawn"]
+    assert len(bulbs) == len(zones) + min(len(spawns), 1) and zones, (len(bulbs), len(zones))
+    assert bulbs[0].data.type == "POINT"
+    assert bpy.context.scene.view_settings.exposure > 0
+    lighting.setup_lighting(bpy.context, root, objects, "daylight")
+    assert not [o for o in bpy.data.objects if o.name.startswith(lighting.ROOM_LIGHT_NAME)]
+    assert bpy.data.collections.get(lighting.LIGHTS_COLLECTION) is None
 
 
 def check_polish() -> None:

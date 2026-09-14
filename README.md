@@ -41,8 +41,10 @@ textures whose alpha channel really cuts something out get that alpha wired to t
 site's ground plane gets a mid-grey albedo. *Set up lighting* (file dialog, Pascal tab, and the
 add-on preferences for scenes sent from the editor) adds a `Pascal sky` world, a `Pascal sun`, a
 `Pascal ground` and a `Pascal camera` — press Numpad 0 to look through it. The look comes from a
-preset you pick in the Pascal tab (*Daylight*, *Golden hour*, *Overcast*, *Physical sky*); the
-refresh button next to it re-lights the current scene. Lighting uses one of Blender's bundled
+preset you pick in the Pascal tab (*Daylight*, *Golden hour*, *Overcast*, *Night*, *Physical
+sky*); the refresh button next to it re-lights the current scene. *Night* adds a warm bulb in
+every room (one per zone) and a porch light at the spawn point, in a `Pascal lights` collection
+that the other presets remove again. Lighting uses one of Blender's bundled
 world HDRIs (neutral, no colour cast) with a sun lamp for crisp shadows, while the camera sees a
 physical-sky backdrop. Your render engine is left alone (EEVEE gets shadows, ray tracing and fast
 GI switched on; Cycles gets denoising); the add-on preferences can make it switch to EEVEE or
