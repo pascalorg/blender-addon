@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+
+id = "pascal"
+version = "0.1.0"
+name = "Pascal"
+tagline = "Import Pascal scenes with levels, zones, doors and metadata"
+maintainer = "Pascal Group Inc"
+type = "add-on"
+website = "https://github.com/pascalorg/blender-addon"
+tags = ["Import-Export"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/.git/",
+  "/.github/",
+  "/tests/",
+  "/scripts/",
+  "/*.md",
+  "/pyproject.toml",
+  "/.gitignore",
+]
