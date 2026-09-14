@@ -245,6 +245,21 @@ def build_zone_mesh(zone: bpy.types.Object, collection: bpy.types.Collection) ->
 # --- the import -------------------------------------------------------------
 
 
+GLTF_IMPORT_OPTIONS = {
+    "import_scene_extras": True,  # 5.x flag; 4.2 always imports extras
+    "import_shading": "NORMALS",
+    "merge_vertices": False,
+    "import_select_created_objects": False,
+}
+
+
+def _gltf_import_options() -> dict:
+    """Only the options this Blender's glTF importer actually declares."""
+    known = {prop.identifier for prop in bpy.ops.import_scene.gltf.get_rna_type().properties}
+    return {key: value for key, value in GLTF_IMPORT_OPTIONS.items() if key in known}
+
+
+
 def _preference(name: str, default: bool) -> bool:
     try:
         return bool(getattr(bpy.context.preferences.addons[__package__].preferences, name))
@@ -278,13 +293,7 @@ def import_pascal_file(
 
     before = {obj.as_pointer() for obj in bpy.data.objects}
     actions_before = {action.as_pointer() for action in bpy.data.actions}
-    bpy.ops.import_scene.gltf(
-        filepath=filepath,
-        import_scene_extras=True,
-        import_shading="NORMALS",
-        merge_vertices=False,
-        import_select_created_objects=False,
-    )
+    bpy.ops.import_scene.gltf(filepath=filepath, **_gltf_import_options())
     created = [obj for obj in bpy.data.objects if obj.as_pointer() not in before]
     new_actions = [a for a in bpy.data.actions if a.as_pointer() not in actions_before]
 
