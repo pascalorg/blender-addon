@@ -10,6 +10,7 @@ scene instead of a flat pile of meshes:
 - the door and window `open` clips as NLA tracks on the moving parts
 - metric units, 1 unit = 1 m
 - re-importing the same project replaces the previous import instead of stacking `.001` copies
+- a loopback listener so the editor's *Send to Blender* lands the live scene in the open Blender
 
 Pascal is a tool that produces files you own. The GLB it exports is plain glTF with a small,
 documented set of `extras`; this add-on just reads them.
@@ -58,10 +59,29 @@ Anything else in the file is ordinary glTF 2.0 that Blender's own importer handl
 Set `BLENDER` to point at another binary. Real exports for local testing go in
 `tests/fixtures/local/` (git-ignored).
 
+## Send to Blender (from the editor)
+
+The add-on listens on `127.0.0.1:27412` (next few ports if taken) so the Pascal editor can hand
+the live scene to the open Blender without a download step. Only web origins you allow can send:
+`https://editor.pascal.app` by default; any other origin that tries shows up in the Pascal
+sidebar tab with an *Allow* button (useful for a local editor on `http://localhost:3001`).
+Port, origins and auto-start live in the add-on preferences.
+
+Protocol, for anyone building another sender:
+
+| Route | Purpose |
+|---|---|
+| `OPTIONS *` | CORS preflight, answers `Access-Control-Allow-Private-Network: true` (Chrome private-network access) |
+| `GET /pascal/health` | `{ app: "blender", version, addon, port, allowed }` — `allowed` tells the caller whether its origin may send |
+| `POST /pascal/import` | body `model/gltf-binary`; optional `X-Pascal-Project-Name`, `X-Pascal-Project-Id`, `X-Pascal-Version`; `202 { id, state: "queued" }`, `403 origin_not_allowed`, `400 not_glb` |
+| `GET /pascal/import/<id>` | `{ id, state: queued | done | failed, summary?, error? }` |
+
+Requests without an `Origin` header (curl, scripts on the same machine) are accepted: the
+allowlist gates browsers, which are the only callers acting with ambient authority.
+
 ## Roadmap
 
-- **Send to Blender**: a loopback listener in the add-on and a button in the Pascal editor, so the
-  live scene lands in an open Blender without a download step.
+- **Send to Blender** button in the Pascal editor (the listener side above is in).
 - Pull a project straight from your Pascal account.
 
 ## License

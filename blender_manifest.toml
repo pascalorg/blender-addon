@@ -11,6 +11,9 @@ tags = ["Import-Export"]
 blender_version_min = "4.2.0"
 license = ["SPDX:GPL-3.0-or-later"]
 
+[permissions]
+network = "Receive scenes sent from the Pascal editor over localhost"
+
 [build]
 paths_exclude_pattern = [
   "__pycache__/",
