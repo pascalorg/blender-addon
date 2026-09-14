@@ -34,6 +34,7 @@ def main() -> None:
     addon = load_addon()
     from pascal_addon import importer  # noqa: E402 — registered above
 
+    engine_before = bpy.context.scene.render.engine
     summary = importer.import_pascal_file(bpy.context, fixture)
     print("SUMMARY", summary.describe())
 
@@ -87,7 +88,7 @@ def main() -> None:
     assert camera is not None and bpy.context.scene.camera is camera
     ground = bpy.data.objects.get(importer.lighting.GROUND_NAME)
     assert ground is not None and ground.type == "MESH" and ground.data.materials
-    assert bpy.context.scene.render.engine in importer.lighting.ENGINE_CANDIDATES
+    assert bpy.context.scene.render.engine == engine_before, "lighting changed the render engine"
 
     objects_before = len(bpy.data.objects)
     second = importer.import_pascal_file(bpy.context, fixture)

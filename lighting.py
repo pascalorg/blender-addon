@@ -263,23 +263,49 @@ def _camera(scene: bpy.types.Scene, root: bpy.types.Collection, objects) -> bpy.
     return camera
 
 
-def _render_settings(scene: bpy.types.Scene) -> None:
-    for engine in ENGINE_CANDIDATES:
+ENGINE_CHOICES = [
+    ("KEEP", "Keep current", "Leave the render engine as it is"),
+    ("EEVEE", "EEVEE", "Switch to EEVEE for an instant real-time preview"),
+    ("CYCLES", "Cycles", "Switch to Cycles for path-traced renders"),
+]
+
+
+def engine_preference() -> str:
+    try:
+        return str(bpy.context.preferences.addons[__package__].preferences.render_engine)
+    except (KeyError, AttributeError):
+        return "KEEP"
+
+
+def _apply_engine(scene: bpy.types.Scene, choice: str) -> None:
+    """The engine is the user's call; only switch when they asked for it."""
+    candidates = {"EEVEE": ENGINE_CANDIDATES, "CYCLES": ("CYCLES",)}.get(choice, ())
+    for engine in candidates:
         try:
             scene.render.engine = engine
-            break
+            return
         except TypeError:
             continue
-    eevee = scene.eevee
-    for name, value in (
-        ("use_shadows", True),
-        ("use_raytracing", True),
-        ("use_fast_gi", True),
-        ("taa_render_samples", 64),
-        ("shadow_ray_count", 2),
-    ):
-        if hasattr(eevee, name):
-            setattr(eevee, name, value)
+
+
+def _render_settings(scene: bpy.types.Scene, engine_choice: str = "KEEP") -> None:
+    _apply_engine(scene, engine_choice)
+    if scene.render.engine in ENGINE_CANDIDATES:
+        eevee = scene.eevee
+        for name, value in (
+            ("use_shadows", True),
+            ("use_raytracing", True),
+            ("use_fast_gi", True),
+            ("taa_render_samples", 64),
+            ("shadow_ray_count", 2),
+        ):
+            if hasattr(eevee, name):
+                setattr(eevee, name, value)
+    elif scene.render.engine == "CYCLES" and hasattr(scene, "cycles"):
+        cycles = scene.cycles
+        for name, value in (("use_preview_denoising", True), ("use_denoising", True)):
+            if hasattr(cycles, name):
+                setattr(cycles, name, value)
     view = scene.view_settings
     for name, value in (("view_transform", "AgX"), ("look", "AgX - Medium High Contrast")):
         try:
@@ -328,5 +354,5 @@ def setup_lighting(context, root: bpy.types.Collection, objects, preset_name: st
     _sun(root, preset)
     _ground(root, _bounds(objects))
     _camera(scene, root, objects)
-    _render_settings(scene)
+    _render_settings(scene, engine_preference())
     _rendered_viewports(preset["hdri"])

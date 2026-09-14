@@ -44,7 +44,9 @@ add-on preferences for scenes sent from the editor) adds a `Pascal sky` world, a
 preset you pick in the Pascal tab (*Daylight*, *Golden hour*, *Overcast*, *Physical sky*); the
 refresh button next to it re-lights the current scene. Lighting uses one of Blender's bundled
 world HDRIs (neutral, no colour cast) with a sun lamp for crisp shadows, while the camera sees a
-physical-sky backdrop. They are a starting point: tweak or delete them, a re-import reuses the
+physical-sky backdrop. Your render engine is left alone (EEVEE gets shadows, ray tracing and fast
+GI switched on; Cycles gets denoising); the add-on preferences can make it switch to EEVEE or
+Cycles on import instead. They are a starting point: tweak or delete them, a re-import reuses the
 same ones.
 
 ## What the file contains

@@ -40,6 +40,12 @@ class PascalPreferences(bpy.types.AddonPreferences):
         items=listener_presets(),
         default=lighting.DEFAULT_PRESET,
     )
+    render_engine: EnumProperty(
+        name="Render engine",
+        description="Whether Set up lighting switches the render engine",
+        items=lighting.ENGINE_CHOICES,
+        default="KEEP",
+    )
     setup_lighting: BoolProperty(
         name="Set up lighting on import",
         description="Add a sky and sun, frame a camera, and switch the viewport to rendered shading after each import",
@@ -51,6 +57,7 @@ class PascalPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "polish_materials")
         layout.prop(self, "setup_lighting")
         layout.prop(self, "lighting_preset")
+        layout.prop(self, "render_engine")
         layout.prop(self, "auto_start")
         layout.prop(self, "port")
         layout.prop(self, "allowed_origins")
