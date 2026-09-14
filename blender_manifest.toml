@@ -20,6 +20,7 @@ paths_exclude_pattern = [
   "/.git/",
   "/.github/",
   "/tests/",
+  "/docs/",
   "/scripts/",
   "/*.md",
   "/pyproject.toml",

@@ -1,5 +1,7 @@
 # Pascal for Blender
 
+![A Pascal house imported into Blender: collections per level and kind in the outliner, the Pascal sidebar tab, daylight lighting](docs/images/blender-import.webp)
+
 Import the GLB files [Pascal](https://pascal.app) produces and get a structured, editable Blender
 scene instead of a flat pile of meshes:
 
@@ -80,6 +82,11 @@ Set `BLENDER` to point at another binary. Real exports for local testing go in
 `tests/fixtures/local/` (git-ignored).
 
 ## Send to Blender (from the editor)
+
+<p align="center">
+  <img src="docs/images/pascal-editor.webp" alt="The same house in the Pascal editor" width="66%">
+  <img src="docs/images/send-to-blender-button.webp" alt="Settings → Export → Send to Blender in the Pascal editor" width="30%">
+</p>
 
 The add-on listens on `127.0.0.1:27412` (next few ports if taken) so the Pascal editor can hand
 the live scene to the open Blender without a download step. Only web origins you allow can send:
