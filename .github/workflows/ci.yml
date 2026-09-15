@@ -55,12 +55,16 @@ jobs:
           curl -sSL "https://download.blender.org/release/Blender5.2/blender-5.2.1-linux-x64.tar.xz" -o blender.tar.xz
           mkdir -p ~/blender-5.2.1
           tar -xJf blender.tar.xz -C ~/blender-5.2.1 --strip-components=1
-      - name: Build zip
+      - name: Build and validate zip
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxrender1 libxkbcommon0 libgl1 libsm6 > /dev/null
-          mkdir -p dist
-          ~/blender-5.2.1/blender --command extension build --source-dir . --output-dir dist
-          ls -la dist
+          BLENDER=~/blender-5.2.1/blender ./scripts/build.sh
+      - name: No archives inside the package
+        run: |
+          if unzip -l dist/*.zip | grep -qE '\.(zip|tar|tar\.gz|tgz)( |$)'; then
+            echo "the package contains an archive" >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: pascal-extension

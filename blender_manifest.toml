@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "pascal"
-version = "0.5.0"
+version = "0.6.0"
 name = "Pascal"
 tagline = "Import Pascal scenes with levels, zones, doors and metadata"
 maintainer = "Pascal Group Inc"
@@ -13,16 +13,20 @@ license = ["SPDX:GPL-3.0-or-later"]
 
 [permissions]
 network = "Receive scenes sent from the Pascal editor over localhost"
+files = "Import GLB scenes from disk and from a temporary folder"
 
+# An allowlist, not an exclude list (the manifest itself is always included): the
+# package can only ever hold these files, so a build folder or a stray archive in the
+# source tree cannot slip into the zip.
 [build]
-paths_exclude_pattern = [
-  "__pycache__/",
-  "/.git/",
-  "/.github/",
-  "/tests/",
-  "/docs/",
-  "/scripts/",
-  "/*.md",
-  "/pyproject.toml",
-  "/.gitignore",
+paths = [
+  "LICENSE",
+  "__init__.py",
+  "importer.py",
+  "lighting.py",
+  "listener.py",
+  "polish.py",
+  "preferences.py",
+  "server.py",
+  "ui.py",
 ]

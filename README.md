@@ -74,8 +74,9 @@ Anything else in the file is ordinary glTF 2.0 that Blender's own importer handl
 ./scripts/test.sh
 ./scripts/test.sh path/to/export.glb
 
-# build the extension zip
-/Applications/Blender.app/Contents/MacOS/Blender --command extension build --source-dir . --output-dir dist
+# build and validate the extension zip (Blender's own tool; file list is [build].paths
+# in blender_manifest.toml, so only those files can ever end up in the package)
+./scripts/build.sh
 ```
 
 Set `BLENDER` to point at another binary. Real exports for local testing go in
@@ -89,7 +90,11 @@ Set `BLENDER` to point at another binary. Real exports for local testing go in
 </p>
 
 The add-on listens on `127.0.0.1:27412` (next few ports if taken) so the Pascal editor can hand
-the live scene to the open Blender without a download step. Only web origins you allow can send:
+the live scene to the open Blender without a download step. Blender itself opens no socket and
+starts no thread: `server.py` runs as a helper process (Blender's bundled Python, started with
+`subprocess`) and hands received scenes over through a temporary spool folder, which a
+`bpy.app.timers` callback drains on Blender's main thread. The helper stops with Blender — and
+lets itself out if Blender goes away without stopping it. Only web origins you allow can send:
 `https://editor.pascal.app` by default; any other origin that tries shows up in the Pascal
 sidebar tab with an *Allow* button (useful for a local editor on `http://localhost:3001`).
 Port, origins and auto-start live in the add-on preferences.

@@ -107,6 +107,9 @@ class VIEW3D_PT_pascal(bpy.types.Panel):
         else:
             box.label(text="Not listening", icon="UNLINKED")
             box.operator(PASCAL_OT_listener_start.bl_idname, text="Listen for the Pascal editor", icon="PLAY")
+            if listener.STATE.last_error:
+                for line in _wrap(listener.STATE.last_error, 34):
+                    box.label(text=line, icon="ERROR")
 
         pending = listener.pending_origins()
         if pending:

@@ -10,12 +10,20 @@ def listener_presets():
     return lighting.PRESET_ITEMS
 
 
+def _republish(self, context) -> None:
+    """The allowlist lives in the helper process too; keep it in step."""
+    listener.publish_config()
+
+
 class PascalPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
     port: IntProperty(
         name="Listener port",
-        description="Loopback port the Pascal editor sends scenes to (falls back to the next few ports when taken)",
+        description=(
+            "Loopback port the Pascal editor sends scenes to (falls back to the next few ports when taken). "
+            "The editor looks for the add-on on this port and the four after it; takes effect next time the listener starts"
+        ),
         default=listener.DEFAULT_PORT,
         min=1024,
         max=65535,
@@ -24,6 +32,7 @@ class PascalPreferences(bpy.types.AddonPreferences):
         name="Allowed origins",
         description="Comma-separated web origins allowed to send scenes to Blender",
         default=", ".join(listener.DEFAULT_ALLOWED_ORIGINS),
+        update=_republish,
     )
     auto_start: BoolProperty(
         name="Listen for the Pascal editor on startup",
