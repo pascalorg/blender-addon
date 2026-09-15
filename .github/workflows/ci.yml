@@ -41,6 +41,8 @@ jobs:
     name: Build extension
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: write  # the tagged build attaches the zip to the release
     steps:
       - uses: actions/checkout@v4
       - name: Cache Blender
