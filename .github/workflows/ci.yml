@@ -61,7 +61,8 @@ jobs:
           BLENDER=~/blender-5.2.1/blender ./scripts/build.sh
       - name: No archives inside the package
         run: |
-          if unzip -l dist/*.zip | grep -qE '\.(zip|tar|tar\.gz|tgz)( |$)'; then
+          # -Z1 lists entry names only: `unzip -l` would match the package's own path.
+          if unzip -Z1 dist/*.zip | grep -iE '\.(zip|tar|gz|tgz|7z|rar)$'; then
             echo "the package contains an archive" >&2
             exit 1
           fi
